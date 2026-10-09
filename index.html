@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cuarto de Cartas</title>
+<meta name="theme-color" content="#171827">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cuarto de Cartas">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#171827; --bg2:#1f2137; --panel:#242640; --line:#3a3d63;
+  --cream:#f2efe6; --cyan:#57d9c9; --gold:#ffce54; --coral:#ff6b6b; --violet:#a78bfa;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0; min-height:100%; background:var(--bg); color:var(--cream);
+  font-family:'Segoe UI',system-ui,sans-serif;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  overflow-x:hidden;
+}
+h1,h2,.pixel{font-family:'Press Start 2P',monospace}
+#hud{
+  position:sticky; top:env(safe-area-inset-top,0px); z-index:5;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:14px 18px; background:var(--bg2); border-bottom:3px solid var(--line);
+}
+#hud h1{font-size:12px; margin:0; color:var(--cyan)}
+#coins{font-size:13px; color:var(--gold)}
+#xpRow{display:flex; align-items:center; gap:8px}
+#xpLevel{font-size:9px; color:var(--violet); flex-shrink:0}
+.xpBarOuter{flex:1; height:8px; background:var(--bg); border:1px solid var(--line); border-radius:4px; overflow:hidden}
+.xpBarInner{height:100%; width:0%; background:linear-gradient(90deg,var(--violet),var(--cyan)); transition:width .4s ease}
+#xpText{font-size:10px; color:#9295c4; flex-shrink:0; white-space:nowrap}
+#toastWrap{position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:50; display:flex; flex-direction:column; gap:8px; align-items:center; pointer-events:none}
+.toast{
+  background:var(--panel); border:2px solid var(--violet); color:var(--cream); font-size:12px;
+  padding:9px 16px; border-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,.35);
+  animation:toastIn .25s ease, toastOut .4s ease 2.2s forwards;
+}
+@keyframes toastIn{from{opacity:0; transform:translateY(-10px)} to{opacity:1; transform:translateY(0)}}
+@keyframes toastOut{to{opacity:0; transform:translateY(-6px)}}
+#room{
+  position:relative; max-width:720px; margin:0 auto; padding:40px 20px 60px;
+  display:flex; flex-direction:column; gap:34px; align-items:center;
+}
+.zone{
+  width:100%; max-width:420px; background:var(--bg2); border:3px solid var(--line);
+  border-radius:6px; padding:22px; text-align:center; cursor:pointer;
+  transition:border-color .15s, transform .1s; position:relative;
+}
+.zone:hover{border-color:var(--cyan); transform:translateY(-2px)}
+.zone .icon{font-size:44px; margin-bottom:10px}
+.zone h2{font-size:12px; margin:0 0 8px; color:var(--cream)}
+.zone p{font-size:13px; color:#b8bade; margin:0}
+.zone.locked{cursor:default; opacity:.55}
+.zone.locked:hover{border-color:var(--line); transform:none}
+.zoneLockBadge{
+  position:absolute; top:10px; right:10px; background:var(--bg); border:1px solid var(--coral);
+  color:var(--coral); font-size:9px; padding:3px 7px; border-radius:10px;
+}
+.packLockBadge{
+  position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  background:rgba(10,10,18,.78); border-radius:4px; gap:4px;
+}
+.packLockBadge .lk{font-size:22px}
+.packLockBadge .lt{font-size:9px; color:var(--coral); text-align:center; padding:0 6px}
+#overlay{
+  position:fixed; inset:0; background:rgba(10,10,18,.85); display:none;
+  align-items:center; justify-content:center; z-index:20; padding:16px;
+  overflow-y:auto;
+}
+#overlay.show{display:flex}
+.modal{
+  background:var(--panel); border:3px solid var(--cyan); border-radius:8px;
+  max-width:660px; width:100%; max-height:90vh; overflow-y:auto; padding:22px;
+}
+.modal h2{font-size:14px; color:var(--gold); margin-top:0}
+.closeBtn{
+  float:right; background:none; border:2px solid var(--coral); color:var(--coral);
+  border-radius:4px; padding:4px 10px; cursor:pointer; font-size:12px;
+}
+.packGrid,.cardGrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; margin-top:14px}
+.pack{
+  background:var(--bg2); border:2px solid var(--line); border-radius:6px; padding:12px;
+  text-align:center; cursor:pointer; position:relative; overflow:hidden;
+}
+.pack:hover{border-color:var(--gold)}
+.pack .pk{font-size:34px}
+.pack .price{color:var(--gold); font-size:13px; margin-top:6px}
+.pack .pdesc{font-size:10px; color:#9295c4; margin-top:6px; line-height:1.4}
+.pack.disabled{opacity:.4; cursor:default}
+.pack[data-skin="basico"]{background:linear-gradient(160deg,#1f2137,#262845)}
+.pack[data-skin="mystery"]{background:linear-gradient(160deg,#141a33,#1e2a52); border-color:#6ec6ff}
+.pack[data-skin="mystery"]::after{content:"?"; position:absolute; right:8px; top:4px; font-size:46px; opacity:.08; font-family:'Press Start 2P',monospace}
+.pack[data-skin="plus"]{background:linear-gradient(160deg,#241f40,#332a55); border-color:#a78bfa}
+.pack[data-skin="premium"]{background:linear-gradient(160deg,#332614,#4a3618); border-color:#ffce54}
+.pack[data-skin="elite"]{background:linear-gradient(160deg,#3a1414,#551c1c); border-color:#ff6b6b}
+.pack[data-skin="elite"]::after{content:"★"; position:absolute; right:8px; top:0; font-size:40px; opacity:.1}
+.card{
+  background:var(--bg2); border:2px solid var(--rc,var(--line)); border-radius:8px;
+  padding:10px; text-align:center; position:relative;
+}
+.card .art{width:100%; aspect-ratio:1/1; display:block; margin:0 auto}
+.card .nm{font-size:12px; margin:6px 0 2px; font-weight:600}
+.card .rr{font-size:10px; color:var(--rc,#aaa)}
+.card .era{font-size:9px; color:#7d80ab; margin-top:2px}
+.card .pr{font-size:11px; color:var(--gold); margin-top:4px}
+.card input[type=checkbox]{position:absolute; top:6px; left:6px; width:16px; height:16px; z-index:2}
+.tcgFrame{
+  background:linear-gradient(160deg,#ffd54a,#f0b429);
+  border:3px solid #2b2b2b; border-radius:10px; padding:5px;
+  position:relative; overflow:hidden;
+}
+.tcgFrame.holo{background:linear-gradient(160deg,#ffe98a,#f6c945)}
+.tcgFrame.modern{background:linear-gradient(160deg,#f3f5fb,#dfe3ef); border-color:#23263a}
+.tcgFrame.modern .tcgTop,.tcgFrame.modern .tcgBottom{color:#23263a}
+.tcgFrame.modern .tcgArt{border-color:#23263a}
+.tcgFrame.modern.holo{background:linear-gradient(160deg,#fff3d6,#ffe3a3)}
+.tcgTop{display:flex; justify-content:space-between; align-items:center; gap:4px; padding:0 2px 3px; font-size:9px; font-weight:700; color:#2b2b2b}
+.tcgName{max-width:68%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.tcgHp{color:#c0392b; flex-shrink:0}
+.tcgArt{background:#fdfdfb; border:2px solid #2b2b2b; border-radius:4px; padding:4px; position:relative}
+.tcgArt .art{width:100%; aspect-ratio:1/1; display:block; margin:0 auto}
+.tcgBottom{display:flex; justify-content:space-between; align-items:center; padding:3px 2px 0; font-size:8px; color:#2b2b2b; font-weight:600}
+.tcgRarity{font-size:11px}
+.holoShine{
+  position:absolute; inset:0; pointer-events:none; border-radius:6px;
+  background:linear-gradient(115deg, transparent 8%, rgba(255,255,255,.98) 30%, rgba(200,140,255,.9) 45%, rgba(120,220,255,.9) 58%, rgba(255,255,255,.7) 70%, transparent 88%);
+  background-size:260% 260%;
+  mix-blend-mode:screen;
+  animation:holoMove 2.6s linear infinite;
+  filter:saturate(1.6) brightness(1.15);
+}
+.holoShine.rainbow{
+  background:linear-gradient(115deg, transparent 4%, #ffb3b3 18%, #ffe8a3 32%, #b3ffc2 46%, #a3e6ff 60%, #e0b3ff 74%, #ffffff 86%, transparent 96%);
+  background-size:300% 300%;
+  mix-blend-mode:screen;
+  animation:holoMove 1.9s linear infinite;
+  filter:saturate(1.8) brightness(1.2);
+}
+@keyframes holoMove{
+  0%{background-position:0% 0%}
+  100%{background-position:100% 100%}
+}
+.btn{
+  background:var(--cyan); color:#111; border:none; border-radius:4px; padding:9px 14px;
+  font-size:12px; font-weight:700; cursor:pointer; margin-top:14px;
+}
+.btn:disabled{opacity:.4; cursor:default}
+.sortRow{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+.sortRow button{
+  background:var(--bg2); border:1px solid var(--line); color:var(--cream);
+  border-radius:4px; padding:6px 10px; font-size:11px; cursor:pointer;
+}
+.sortRow button.active{border-color:var(--cyan); color:var(--cyan)}
+.empty{color:#8a8dbf; font-size:13px; padding:20px 0}
+#openStage{display:flex; flex-direction:column; align-items:center; padding:10px 0}
+.flipZone{perspective:1000px; width:180px; height:260px; margin:16px auto}
+.flipCard{
+  position:relative; width:100%; height:100%; transition:transform .55s cubic-bezier(.4,.2,.2,1);
+  transform-style:preserve-3d; cursor:pointer;
+}
+.flipCard.flipped{transform:rotateY(180deg)}
+.face{
+  position:absolute; inset:0; backface-visibility:hidden; border-radius:10px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  border:3px solid var(--line);
+}
+.faceBack{
+  background:repeating-linear-gradient(45deg,#2d2f55,#2d2f55 8px,#252748 8px,#252748 16px);
+  font-size:38px;
+}
+.faceBack[data-skin="plus"]{background:repeating-linear-gradient(45deg,#332a55,#332a55 8px,#291f47 8px,#291f47 16px)}
+.faceBack[data-skin="mystery"]{background:repeating-linear-gradient(45deg,#1e2a52,#1e2a52 8px,#162040 8px,#162040 16px)}
+.faceBack[data-skin="premium"]{background:repeating-linear-gradient(45deg,#4a3618,#4a3618 8px,#3a2a12 8px,#3a2a12 16px)}
+.faceBack[data-skin="elite"]{background:repeating-linear-gradient(45deg,#551c1c,#551c1c 8px,#421414 8px,#421414 16px)}
+.faceFront{
+  background:var(--bg2); transform:rotateY(180deg); border-color:var(--rc,var(--cyan)); padding:10px;
+}
+.faceFront .art{width:80px; height:80px}
+.faceFront .nm{font-size:12px; margin:8px 0 2px}
+.faceFront .rr{font-size:10px}
+.faceFront .era{font-size:9px}
+.faceFront .pr{font-size:11px; color:var(--gold)}
+#openHint{font-size:11px; color:#9295c4; margin-top:4px}
+#openProgress{font-size:11px; color:#9295c4; margin-bottom:4px}
+.catTabs{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+.catTabs button{
+  background:var(--bg2); border:1px solid var(--line); color:var(--cream);
+  border-radius:4px; padding:7px 12px; font-size:12px; cursor:pointer;
+}
+.catTabs button.active{border-color:var(--gold); color:var(--gold)}
+.catWrap{overflow-x:auto; margin-top:12px; border:1px solid var(--line); border-radius:6px}
+.catTable{width:100%; border-collapse:collapse; font-size:11px; white-space:nowrap}
+.catTable th,.catTable td{padding:6px 8px; text-align:left; border-bottom:1px solid var(--line)}
+.catTable thead th{background:var(--bg2); color:#9295c4; position:sticky; top:0; font-weight:600}
+.catTable tbody tr:hover{background:rgba(255,255,255,.04)}
+.catRarity{font-size:9px; padding:2px 6px; border-radius:10px; font-weight:700}
+.catPrice{color:var(--gold)}
+.coRow{display:flex; gap:8px; margin:10px 0; flex-wrap:wrap}
+.coRow button{flex:1; min-width:140px; padding:10px; border-radius:10px; border:1px solid var(--line); background:var(--bg2); color:#d6d8f5; cursor:pointer; font-size:12px; text-align:left}
+.coRow button b{display:block; font-size:14px; margin-bottom:2px}
+.coRow button.active{border-color:var(--gold); background:rgba(255,206,84,.12); color:#fff}
+.catTable th.blk,.catTable td.blk{color:#fff; background:#111; font-weight:700}
+.card.blackLabel{box-shadow:0 0 14px 2px #000, 0 0 0 2px #ffce54}
+.blTag{display:inline-block; background:#000; color:#ffce54; border:1px solid #ffce54; border-radius:4px; padding:0 4px; font-weight:700}
+.catNote{font-size:11px; color:#9295c4; margin-top:10px; line-height:1.5}
+</style>
+</head>
+<body>
+<div id="hud">
+  <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:0">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <h1 class="pixel">CUARTO DE CARTAS</h1>
+      <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
+        <div id="coins" class="pixel">💰 <span id="coinVal">0</span></div>
+        <button id="resetBtn" onclick="restartGame()" style="background:none;border:1px solid var(--line);color:#b8bade;border-radius:4px;padding:5px 8px;font-size:10px;cursor:pointer">↺ Reiniciar</button>
+      </div>
+    </div>
+    <div id="xpRow">
+      <span id="xpLevel" class="pixel">NIVEL 1</span>
+      <div class="xpBarOuter"><div class="xpBarInner" id="xpBarInner"></div></div>
+      <span id="xpText">0/0 XP</span>
+    </div>
+  </div>
+</div>
+
+<div id="room">
+  <div class="zone" id="zComputer">
+    <div class="icon">🖥️</div>
+    <h2>Computador</h2>
+    <p>Comprar sobres de cartas Pokémon reales</p>
+  </div>
+  <div class="zone" id="zMachine">
+    <div class="icon">🏧</div>
+    <h2>Máquina vendedora</h2>
+    <p>Vender cartas por dinero</p>
+  </div>
+  <div class="zone" id="zAlbum">
+    <div class="icon">📖</div>
+    <h2>Álbum</h2>
+    <p>Guardar y ordenar tu colección</p>
+  </div>
+  <div class="zone" id="zGrading">
+    <div class="icon">🔬</div>
+    <h2>Centro de Gradeo</h2>
+    <p>Certifica tus cartas: pueden subir de valor... o bajar un poco</p>
+  </div>
+  <div class="zone" id="zCatalog">
+    <div class="icon">📋</div>
+    <h2>Catálogo</h2>
+    <p>Mira qué cartas toca cada colección: su % de aparición, precio y valor en cada PSA</p>
+  </div>
+</div>
+
+<div id="overlay"><div class="modal" id="modalBody"></div></div>
+<div id="toastWrap"></div>
+
+<script>
+// ---- Rarezas del juego ----
+const RARITIES = [
+  {id:'comun', label:'Común', color:'#9aa0c2'},
+  {id:'poco',  label:'Poco Común', color:'#57d9c9'},
+  {id:'rara',  label:'Rara', color:'#ffce54'},
+  {id:'epica', label:'Rara Holo / ex', color:'#a78bfa'},
+  {id:'legendaria', label:'Legendaria', color:'#ff6b6b'},
+];
+const RARITY_ORDER=RARITIES.map(r=>r.id);
+const ALL_TIERS=['comun','poco','rara','epica','legendaria'];
+
+// ---- Tipos reales -> familia visual usada para dibujar ----
+const TYPE_ART={
+  'Fuego':'Fuego','Agua':'Agua','Planta':'Planta','Eléctrico':'Eléctrico','Psíquico':'Psíquico',
+  'Normal':'Normal','Roca':'Roca','Hielo':'Hielo','Dragón':'Dragón',
+  'Veneno':'Psíquico','Tierra':'Roca','Volador':'Normal','Lucha':'Roca',
+  'Bicho':'Planta','Fantasma':'Psíquico','Acero':'Roca','Hada':'Normal'
+};
+const ART_COLORS={
+  'Fuego':['#ff8a5b','#e6482e'], 'Agua':['#6ec6ff','#2378c9'], 'Planta':['#9be06c','#4a9c2e'],
+  'Eléctrico':['#ffe066','#e6b800'], 'Psíquico':['#e19bff','#a444d1'], 'Normal':['#f2e2b8','#c9a96a'],
+  'Roca':['#c9a877','#8a6b3f'], 'Hielo':['#c9f2ff','#6cc7e6'], 'Dragón':['#8a7bff','#5240c9'],
+};
+
+// ---- Constructor compacto de cartas: [nombre, tipo, rareza, probabilidad%, flag('T'=entrenador,'E'=energía), multiplicador de precio opcional] ----
+function mkCards(rows){
+  return rows.map(r=>({name:r[0], type:r[1], rarity:r[2], prob:r[3], isTrainer:r[4]==='T', isEnergy:r[4]==='E', mult:(r[5]!==undefined?r[5]:1)}));
+}
+
+// ---- Base Set (1999) · 102/102 cartas reales, con su rareza y probabilidad exactas ----
+const BASE_ROWS=[
+  // Holo Rara 2.0833%
+  ['Alakazam','Psíquico','epica',2.0833],['Blastoise','Agua','epica',2.0833],['Chansey','Normal','epica',2.0833],
+  ['Charizard','Fuego','epica',2.0833],['Clefairy','Hada','epica',2.0833],['Gyarados','Agua','epica',2.0833],
+  ['Hitmonchan','Lucha','epica',2.0833],['Machamp','Lucha','epica',2.0833],['Magneton','Eléctrico','epica',2.0833],
+  ['Mewtwo','Psíquico','epica',2.0833],['Nidoking','Veneno','epica',2.0833],['Ninetales','Fuego','epica',2.0833],
+  ['Poliwrath','Agua','epica',2.0833],['Raichu','Eléctrico','epica',2.0833],['Venusaur','Planta','epica',2.0833],
+  ['Zapdos','Eléctrico','epica',2.0833],
+  // Rara 4.1667% (6 Pokémon + 10 Entrenador)
+  ['Beedrill','Bicho','rara',4.1667],['Dragonair','Dragón','rara',4.1667],['Dugtrio','Tierra','rara',4.1667],
+  ['Electabuzz','Eléctrico','rara',4.1667],['Electrode','Eléctrico','rara',4.1667],['Pidgeotto','Normal','rara',4.1667],
+  ['Clefairy Doll','Entrenador','rara',4.1667,'T'],['Computer Search','Entrenador','rara',4.1667,'T'],
+  ['Devolution Spray','Entrenador','rara',4.1667,'T'],['Impostor Professor Oak','Entrenador','rara',4.1667,'T'],
+  ['Item Finder','Entrenador','rara',4.1667,'T'],['Lass','Entrenador','rara',4.1667,'T'],
+  ['Pokémon Breeder','Entrenador','rara',4.1667,'T'],['Pokémon Trader','Entrenador','rara',4.1667,'T'],
+  ['Scoop Up','Entrenador','rara',4.1667,'T'],['Super Energy Removal','Entrenador','rara',4.1667,'T'],
+  // Uncommon 9.375% (20 Pokémon + 11 Entrenador + 1 Energía)
+  ['Arcanine','Fuego','poco',9.375],['Charmeleon','Fuego','poco',9.375],['Dewgong','Hielo','poco',9.375],
+  ['Dratini','Dragón','poco',9.375],["Farfetch'd",'Normal','poco',9.375],['Growlithe','Fuego','poco',9.375],
+  ['Haunter','Fantasma','poco',9.375],['Ivysaur','Planta','poco',9.375],['Jynx','Hielo','poco',9.375],
+  ['Kadabra','Psíquico','poco',9.375],['Kakuna','Bicho','poco',9.375],['Machoke','Lucha','poco',9.375],
+  ['Magikarp','Agua','poco',9.375],['Magmar','Fuego','poco',9.375],['Nidorino','Veneno','poco',9.375],
+  ['Poliwhirl','Agua','poco',9.375],['Porygon','Normal','poco',9.375],['Raticate','Normal','poco',9.375],
+  ['Seel','Agua','poco',9.375],['Wartortle','Agua','poco',9.375],
+  ['Defender','Entrenador','poco',9.375,'T'],['Energy Retrieval','Entrenador','poco',9.375,'T'],
+  ['Full Heal','Entrenador','poco',9.375,'T'],['Maintenance','Entrenador','poco',9.375,'T'],
+  ['PlusPower','Entrenador','poco',9.375,'T'],['Pokémon Center','Entrenador','poco',9.375,'T'],
+  ['Pokémon Flute','Entrenador','poco',9.375,'T'],['Pokédex','Entrenador','poco',9.375,'T'],
+  ['Professor Oak','Entrenador','poco',9.375,'T'],['Revive','Entrenador','poco',9.375,'T'],
+  ['Super Potion','Entrenador','poco',9.375,'T'],['Double Colorless Energy','Normal','poco',9.375,'E'],
+  // Común 15.625% (27 Pokémon + 5 Entrenador)
+  ['Abra','Psíquico','comun',15.625],['Bulbasaur','Planta','comun',15.625],['Caterpie','Bicho','comun',15.625],
+  ['Charmander','Fuego','comun',15.625],['Diglett','Tierra','comun',15.625],['Doduo','Normal','comun',15.625],
+  ['Drowzee','Psíquico','comun',15.625],['Gastly','Fantasma','comun',15.625],['Koffing','Veneno','comun',15.625],
+  ['Machop','Lucha','comun',15.625],['Magnemite','Eléctrico','comun',15.625],['Metapod','Bicho','comun',15.625],
+  ['Nidoran ♂','Veneno','comun',15.625],['Onix','Roca','comun',15.625],['Pidgey','Normal','comun',15.625],
+  ['Pikachu','Eléctrico','comun',15.625],['Poliwag','Agua','comun',15.625],['Ponyta','Fuego','comun',15.625],
+  ['Rattata','Normal','comun',15.625],['Sandshrew','Tierra','comun',15.625],['Squirtle','Agua','comun',15.625],
+  ['Starmie','Agua','comun',15.625],['Staryu','Agua','comun',15.625],['Tangela','Planta','comun',15.625],
+  ['Voltorb','Eléctrico','comun',15.625],['Vulpix','Fuego','comun',15.625],['Weedle','Bicho','comun',15.625],
+  ['Bill','Entrenador','comun',15.625,'T'],['Energy Removal','Entrenador','comun',15.625,'T'],
+  ['Gust of Wind','Entrenador','comun',15.625,'T'],['Potion','Entrenador','comun',15.625,'T'],
+  ['Switch','Entrenador','comun',15.625,'T'],
+  // Energía básica 33.3333%
+  ['Fighting Energy','Lucha','comun',33.3333,'E'],['Fire Energy','Fuego','comun',33.3333,'E'],
+  ['Grass Energy','Planta','comun',33.3333,'E'],['Lightning Energy','Eléctrico','comun',33.3333,'E'],
+  ['Psychic Energy','Psíquico','comun',33.3333,'E'],['Water Energy','Agua','comun',33.3333,'E'],
+];
+
+// ---- Jungle (1999) · 64/64 cartas reales, con un multiplicador de precio propio por carta ----
+// (la probabilidad de aparición es la misma dentro de cada rareza, igual que en el sobre real;
+//  lo que varía es cuánto vale cada una al caer, para que no todas las holo valgan lo mismo)
+const JUNGLE_ROWS=[
+  // Rara Holo 2.08%
+  ['Clefable','Hada','epica',2.08,'',0.65],['Electrode','Eléctrico','epica',2.08,'',0.65],['Flareon','Fuego','epica',2.08,'',0.9],
+  ['Jolteon','Eléctrico','epica',2.08,'',0.95],['Kangaskhan','Normal','epica',2.08,'',0.75],['Mr. Mime','Psíquico','epica',2.08,'',0.85],
+  ['Nidoqueen','Veneno','epica',2.08,'',0.65],['Pidgeot','Normal','epica',2.08,'',1.1],['Pinsir','Bicho','epica',2.08,'',0.85],
+  ['Scyther','Bicho','epica',2.08,'',1.05],['Snorlax','Normal','epica',2.08,'',2.2],['Vaporeon','Agua','epica',2.08,'',1.7],
+  ['Venomoth','Bicho','epica',2.08,'',0.75],['Victreebel','Planta','epica',2.08,'',0.95],['Vileplume','Planta','epica',2.08,'',0.9],
+  ['Wigglytuff','Hada','epica',2.08,'',0.7],
+  // Rara 4.17% (mismos nombres, versión no-holo)
+  ['Clefable','Hada','rara',4.17,'',0.85],['Electrode','Eléctrico','rara',4.17,'',0.85],['Flareon','Fuego','rara',4.17,'',1.0],
+  ['Jolteon','Eléctrico','rara',4.17,'',1.0],['Kangaskhan','Normal','rara',4.17,'',0.9],['Mr. Mime','Psíquico','rara',4.17,'',0.95],
+  ['Nidoqueen','Veneno','rara',4.17,'',0.85],['Pidgeot','Normal','rara',4.17,'',1.1],['Pinsir','Bicho','rara',4.17,'',0.95],
+  ['Scyther','Bicho','rara',4.17,'',1.05],['Snorlax','Normal','rara',4.17,'',1.3],['Vaporeon','Agua','rara',4.17,'',1.2],
+  ['Venomoth','Bicho','rara',4.17,'',0.9],['Victreebel','Planta','rara',4.17,'',1.0],['Vileplume','Planta','rara',4.17,'',1.0],
+  ['Wigglytuff','Hada','rara',4.17,'',0.85],
+  // Poco común 18.75%
+  ['Butterfree','Bicho','poco',18.75,'',0.9],['Dodrio','Normal','poco',18.75,'',0.9],['Exeggutor','Planta','poco',18.75,'',1.1],
+  ['Fearow','Normal','poco',18.75,'',0.85],['Gloom','Planta','poco',18.75,'',0.85],['Lickitung','Normal','poco',18.75,'',0.85],
+  ['Marowak','Tierra','poco',18.75,'',1.1],['Nidorina','Veneno','poco',18.75,'',0.9],['Parasect','Bicho','poco',18.75,'',0.9],
+  ['Persian','Normal','poco',18.75,'',1.0],['Primeape','Lucha','poco',18.75,'',1.05],['Rapidash','Fuego','poco',18.75,'',1.05],
+  ['Rhydon','Roca','poco',18.75,'',1.15],['Seaking','Agua','poco',18.75,'',0.9],['Tauros','Normal','poco',18.75,'',1.0],
+  ['Weepinbell','Planta','poco',18.75,'',0.85],
+  // Común 43.75%
+  ['Bellsprout','Planta','comun',43.75,'',0.85],['Cubone','Tierra','comun',43.75,'',0.95],['Eevee','Normal','comun',43.75,'',1.3],
+  ['Exeggcute','Planta','comun',43.75,'',0.85],['Goldeen','Agua','comun',43.75,'',0.85],['Jigglypuff','Hada','comun',43.75,'',1.1],
+  ['Mankey','Lucha','comun',43.75,'',0.85],['Meowth','Normal','comun',43.75,'',1.0],['Nidoran ♀','Veneno','comun',43.75,'',0.85],
+  ['Oddish','Planta','comun',43.75,'',0.9],['Paras','Bicho','comun',43.75,'',0.85],['Pikachu','Eléctrico','comun',43.75,'',1.6],
+  ['Rhyhorn','Roca','comun',43.75,'',0.9],['Spearow','Normal','comun',43.75,'',0.85],['Venonat','Bicho','comun',43.75,'',0.85],
+  ['Poké Ball','Entrenador','comun',43.75,'T',0.9],
+];
+
+// ---- 151 (2023) · las 151 cartas Pokémon + 14 Entrenador = 165/165 cartas reales ----
+const SET151_ROWS=[
+  // Pokémon 1-151
+  ['Bulbasaur','Planta','comun',15.625],['Ivysaur','Planta','poco',9.375],['Venusaur ex','Planta','epica',2.0833,'',1.1],
+  ['Charmander','Fuego','comun',15.625],['Charmeleon','Fuego','poco',9.375],['Charizard ex','Fuego','legendaria',1.0417],
+  ['Squirtle','Agua','comun',15.625],['Wartortle','Agua','poco',9.375],['Blastoise ex','Agua','epica',2.0833,'',1.2],
+  ['Caterpie','Bicho','comun',15.625],['Metapod','Bicho','comun',15.625],['Butterfree','Bicho','poco',9.375],
+  ['Weedle','Bicho','comun',15.625],['Kakuna','Bicho','comun',15.625],['Beedrill','Bicho','rara',4.1667,'',0.85],
+  ['Pidgey','Normal','comun',15.625],['Pidgeotto','Normal','comun',15.625],['Pidgeot','Normal','poco',9.375],
+  ['Rattata','Normal','comun',15.625],['Raticate','Normal','poco',9.375],['Spearow','Normal','comun',15.625],
+  ['Fearow','Normal','poco',9.375],['Ekans','Veneno','comun',15.625],['Arbok ex','Veneno','epica',2.0833,'',0.7],
+  ['Pikachu','Eléctrico','comun',15.625,'',1.5],['Raichu','Eléctrico','rara',4.1667,'',1.0],['Sandshrew','Tierra','comun',15.625],
+  ['Sandslash','Tierra','poco',9.375],['Nidoran ♀','Veneno','comun',15.625],['Nidorina','Veneno','poco',9.375],
+  ['Nidoqueen','Veneno','poco',9.375],['Nidoran ♂','Veneno','comun',15.625],['Nidorino','Veneno','poco',9.375],
+  ['Nidoking','Veneno','rara',4.1667,'',0.9],['Clefairy','Hada','comun',15.625],['Clefable','Hada','poco',9.375],
+  ['Vulpix','Fuego','comun',15.625],['Ninetales ex','Fuego','epica',2.0833,'',0.8],['Jigglypuff','Hada','comun',15.625],
+  ['Wigglytuff ex','Hada','epica',2.0833,'',0.7],['Zubat','Veneno','comun',15.625],['Golbat','Veneno','poco',9.375],
+  ['Oddish','Planta','comun',15.625],['Gloom','Planta','poco',9.375],['Vileplume','Planta','rara',4.1667,'',0.85],
+  ['Paras','Bicho','comun',15.625],['Parasect','Bicho','poco',9.375],['Venonat','Bicho','comun',15.625],
+  ['Venomoth','Bicho','poco',9.375],['Diglett','Tierra','comun',15.625],['Dugtrio','Tierra','poco',9.375],
+  ['Meowth','Normal','comun',15.625],['Persian','Normal','poco',9.375],['Psyduck','Agua','comun',15.625],
+  ['Golduck','Agua','poco',9.375],['Mankey','Lucha','comun',15.625],['Primeape','Lucha','poco',9.375],
+  ['Growlithe','Fuego','comun',15.625],['Arcanine','Fuego','poco',9.375],['Poliwag','Agua','comun',15.625],
+  ['Poliwhirl','Agua','comun',15.625],['Poliwrath','Agua','poco',9.375],['Abra','Psíquico','comun',15.625],
+  ['Kadabra','Psíquico','poco',9.375],['Alakazam ex','Psíquico','epica',2.0833,'',1.0],['Machop','Lucha','comun',15.625],
+  ['Machoke','Lucha','poco',9.375],['Machamp','Lucha','rara',4.1667,'',1.0],['Bellsprout','Planta','comun',15.625],
+  ['Weepinbell','Planta','comun',15.625],['Victreebel','Planta','poco',9.375],['Tentacool','Agua','comun',15.625],
+  ['Tentacruel','Agua','poco',9.375],['Geodude','Roca','comun',15.625],['Graveler','Roca','poco',9.375],
+  ['Golem ex','Roca','epica',2.0833,'',0.7],['Ponyta','Fuego','comun',15.625],['Rapidash','Fuego','poco',9.375],
+  ['Slowpoke','Agua','comun',15.625],['Slowbro','Agua','poco',9.375],['Magnemite','Eléctrico','comun',15.625],
+  ['Magneton','Eléctrico','poco',9.375],["Farfetch'd",'Normal','comun',15.625],['Doduo','Normal','comun',15.625],
+  ['Dodrio','Normal','rara',4.1667,'',0.8],['Seel','Agua','comun',15.625],['Dewgong','Hielo','poco',9.375],
+  ['Grimer','Veneno','comun',15.625],['Muk','Veneno','poco',9.375],['Shellder','Agua','comun',15.625],
+  ['Cloyster','Hielo','poco',9.375],['Gastly','Fantasma','comun',15.625],['Haunter','Fantasma','poco',9.375],
+  ['Gengar','Fantasma','rara',4.1667,'',1.2],['Onix','Roca','poco',9.375],['Drowzee','Psíquico','comun',15.625],
+  ['Hypno','Psíquico','poco',9.375],['Krabby','Agua','comun',15.625],['Kingler','Agua','poco',9.375],
+  ['Voltorb','Eléctrico','comun',15.625],['Electrode','Eléctrico','rara',4.1667,'',0.85],['Exeggcute','Planta','comun',15.625],
+  ['Exeggutor','Planta','poco',9.375],['Cubone','Tierra','comun',15.625],['Marowak','Tierra','rara',4.1667,'',0.85],
+  ['Hitmonlee','Lucha','poco',9.375],['Hitmonchan','Lucha','poco',9.375],['Lickitung','Normal','comun',15.625],
+  ['Koffing','Veneno','comun',15.625],['Weezing','Veneno','rara',4.1667,'',0.8],['Rhyhorn','Roca','comun',15.625],
+  ['Rhydon','Roca','poco',9.375],['Chansey','Normal','rara',4.1667,'',0.9],['Tangela','Planta','comun',15.625],
+  ['Kangaskhan ex','Normal','epica',2.0833,'',0.75],['Horsea','Agua','comun',15.625],['Seadra','Agua','poco',9.375],
+  ['Goldeen','Agua','comun',15.625],['Seaking','Agua','poco',9.375],['Staryu','Agua','comun',15.625],
+  ['Starmie','Agua','rara',4.1667,'',0.9],['Mr. Mime','Psíquico','rara',4.1667,'',0.9],['Scyther','Bicho','poco',9.375],
+  ['Jynx ex','Hielo','epica',2.0833,'',0.75],['Electabuzz','Eléctrico','comun',15.625],['Magmar','Fuego','comun',15.625],
+  ['Pinsir','Bicho','poco',9.375],['Tauros','Normal','poco',9.375],['Magikarp','Agua','comun',15.625,'',0.9],
+  ['Gyarados','Agua','rara',4.1667,'',1.15],['Lapras','Agua','poco',9.375,'',1.05],['Ditto','Normal','rara',4.1667,'',1.0],
+  ['Eevee','Normal','comun',15.625,'',1.3],['Vaporeon','Agua','rara',4.1667,'',1.15],['Jolteon','Eléctrico','rara',4.1667,'',1.1],
+  ['Flareon','Fuego','rara',4.1667,'',1.1],['Porygon','Normal','comun',15.625],['Omanyte','Roca','poco',9.375],
+  ['Omastar','Roca','rara',4.1667,'',0.85],['Kabuto','Roca','poco',9.375],['Kabutops','Roca','rara',4.1667,'',0.85],
+  ['Aerodactyl','Roca','rara',4.1667,'',1.0],['Snorlax','Normal','poco',9.375,'',1.2],['Articuno','Hielo','rara',4.1667,'',1.1],
+  ['Zapdos ex','Eléctrico','epica',2.0833,'',1.3],['Moltres','Fuego','rara',4.1667,'',1.1],['Dratini','Dragón','comun',15.625],
+  ['Dragonair','Dragón','poco',9.375],['Dragonite','Dragón','rara',4.1667,'',1.2],['Mewtwo','Psíquico','rara',4.1667,'',1.3],
+  ['Mew ex','Psíquico','epica',2.0833,'',1.4],
+  // Entrenador 152-165
+  ['Antique Dome Fossil','Entrenador','comun',15.625,'T'],['Antique Helix Fossil','Entrenador','comun',15.625,'T'],
+  ['Antique Old Amber','Entrenador','comun',15.625,'T'],['Big Air Balloon','Entrenador','poco',9.375,'T'],
+  ["Bill's Transfer",'Entrenador','poco',9.375,'T'],['Cycling Road','Entrenador','poco',9.375,'T'],
+  ["Daisy's Help",'Entrenador','poco',9.375,'T'],['Energy Sticker','Entrenador','poco',9.375,'T'],
+  ["Erika's Invitation",'Entrenador','poco',9.375,'T'],["Giovanni's Charisma",'Entrenador','poco',9.375,'T'],
+  ['Grabber','Entrenador','poco',9.375,'T'],['Leftovers','Entrenador','poco',9.375,'T'],
+  ['Protective Goggles','Entrenador','poco',9.375,'T'],['Rigid Band','Entrenador','poco',9.375,'T'],
+];
+
+// ---- Cenit Supremo / Crown Zenith (2023) · 229/229 cartas reales (set principal 159 + Galarian Gallery 70) ----
+const CROWNZENITH_ROWS=[
+['Oddish','Planta','comun',15.625],
+['Gloom','Planta','poco',9.375],
+['Bellossom','Planta','rara',4.1667],
+['Tangela','Planta','comun',15.625],
+['Tangrowth','Planta','rara',4.1667],
+['Scyther','Bicho','comun',15.625],
+['Sunkern','Planta','comun',15.625],
+['Yanma','Bicho','comun',15.625],
+['Yanmega','Bicho','rara',4.1667],
+['Kricketot','Bicho','comun',15.625],
+['Cherubi','Planta','comun',15.625],
+['Carnivine','Planta','poco',9.375],
+['Leafeon V','Planta','epica',2.0833],
+['Leafeon VSTAR','Planta','legendaria',1.0417,'',0.9],
+['Grubbin','Bicho','comun',15.625],
+['Zarude','Planta','rara',4.1667],
+['Calyrex','Psíquico','rara',4.1667],
+['Charizard V','Fuego','epica',2.0833,'',1.6],
+['Charizard VSTAR','Fuego','legendaria',1.0417,'',1.8],
+['Radiant Charizard','Fuego','epica',2.0833,'',1.3],
+['Entei','Fuego','rara',4.1667],
+['Simisear V','Fuego','epica',2.0833,'',0.8],
+['Simisear VSTAR','Fuego','legendaria',1.0417,'',0.6],
+['Larvesta','Fuego','comun',15.625],
+['Volcarona','Fuego','rara',4.1667],
+['Volcanion','Fuego','rara',4.1667],
+['Salandit','Veneno','comun',15.625],
+['Salazzle','Veneno','poco',9.375],
+['Seel','Agua','comun',15.625],
+['Galarian Mr. Mime','Hielo','comun',15.625],
+['Wailmer','Agua','comun',15.625],
+['Wailord','Agua','rara',4.1667],
+['Corphish','Agua','comun',15.625],
+['Snorunt','Hielo','comun',15.625],
+['Luvdisc','Agua','comun',15.625],
+['Kyogre','Agua','rara',4.1667],
+['Kyogre V','Agua','epica',2.0833],
+['Glaceon V','Hielo','epica',2.0833],
+['Shinx','Eléctrico','comun',15.625],
+['Shinx','Eléctrico','comun',15.625],
+['Luxio','Eléctrico','poco',9.375],
+['Luxio','Eléctrico','poco',9.375],
+['Luxray','Eléctrico','rara',4.1667],
+['Luxray','Eléctrico','rara',4.1667],
+['Rotom V','Eléctrico','epica',2.0833],
+['Rotom VSTAR','Eléctrico','legendaria',1.0417,'',0.7],
+['Emolga','Eléctrico','comun',15.625],
+['Eelektrik','Eléctrico','poco',9.375],
+['Helioptile','Eléctrico','comun',15.625],
+['Heliolisk','Eléctrico','rara',4.1667],
+['Radiant Charjabug','Eléctrico','epica',2.0833],
+['Zeraora','Eléctrico','rara',4.1667],
+['Zeraora V','Eléctrico','epica',2.0833],
+['Zeraora VMAX','Eléctrico','legendaria',1.0417],
+['Zeraora VSTAR','Eléctrico','legendaria',1.0417],
+['Pincurchin','Eléctrico','poco',9.375],
+['Exeggcute','Psíquico','comun',15.625],
+['Exeggutor','Planta','rara',4.1667],
+['Mewtwo','Psíquico','rara',4.1667,'',1.2],
+['Mew V','Psíquico','epica',2.0833,'',1.3],
+['Girafarig','Normal','poco',9.375],
+['Lunatone','Roca','poco',9.375],
+['Dusclops','Fantasma','poco',9.375],
+['Tapu Lele','Psíquico','rara',4.1667],
+['Hatterene V','Psíquico','epica',2.0833],
+['Hatterene VMAX','Psíquico','legendaria',1.0417,'',0.8],
+['Enamorus','Hada','rara',4.1667],
+['Graveler','Roca','poco',9.375],
+['Solrock','Roca','poco',9.375],
+['Baltoy','Tierra','comun',15.625],
+['Riolu','Lucha','comun',15.625],
+['Pancham','Lucha','comun',15.625],
+['Rockruff','Roca','comun',15.625],
+['Lycanroc','Roca','rara',4.1667],
+['Koffing','Veneno','comun',15.625],
+['Absol','Siniestro','rara',4.1667],
+['Purrloin','Siniestro','comun',15.625],
+['Liepard','Siniestro','rara',4.1667],
+['Krokorok','Tierra','poco',9.375],
+['Pangoro','Lucha','rara',4.1667],
+['Skrelp','Veneno','comun',15.625],
+['Dragalge','Dragón','rara',4.1667],
+['Hoopa','Psíquico','rara',4.1667],
+['Galarian Meowth','Acero','comun',15.625],
+['Galarian Perrserker','Acero','rara',4.1667],
+['Scizor','Acero','rara',4.1667],
+['Aron','Acero','comun',15.625],
+['Lairon','Acero','poco',9.375],
+['Aggron','Acero','rara',4.1667],
+['Metang','Acero','poco',9.375],
+['Pawniard','Siniestro','comun',15.625],
+['Pawniard','Siniestro','comun',15.625],
+['Bisharp','Siniestro','rara',4.1667],
+['Zacian','Acero','rara',4.1667],
+['Zacian V','Acero','epica',2.0833,'',1.2],
+['Zacian VSTAR','Acero','legendaria',1.0417,'',1.3],
+['Zamazenta','Lucha','rara',4.1667],
+['Zamazenta V','Lucha','epica',2.0833,'',1.1],
+['Zamazenta VSTAR','Lucha','legendaria',1.0417,'',1.2],
+['Rayquaza V','Dragón','epica',2.0833,'',1.2],
+['Rayquaza VMAX','Dragón','legendaria',1.0417,'',1.5],
+['Rayquaza VMAX','Dragón','legendaria',1.0417,'',1.3],
+['Duraludon V','Acero','epica',2.0833],
+['Duraludon VMAX','Acero','legendaria',1.0417,'',0.8],
+['Radiant Eternatus','Veneno','epica',2.0833,'',1.1],
+['Tauros','Normal','comun',15.625],
+['Ditto','Normal','rara',4.1667],
+['Eevee V','Normal','epica',2.0833,'',1.1],
+['Snorlax','Normal','rara',4.1667],
+['Starly','Normal','comun',15.625],
+['Bidoof','Normal','comun',15.625],
+['Chatot','Normal','poco',9.375],
+['Regigigas V','Normal','epica',2.0833],
+['Regigigas VSTAR','Normal','legendaria',1.0417,'',0.8],
+['Shaymin','Planta','rara',4.1667],
+['Stoutland V','Normal','epica',2.0833],
+['Yungoos','Normal','comun',15.625],
+['Gumshoos','Normal','poco',9.375],
+['Oranguru','Psíquico','rara',4.1667],
+['Greedent V','Normal','epica',2.0833],
+['Wooloo','Normal','comun',15.625],
+['Dubwool','Normal','poco',9.375],
+['Bea','Entrenador','poco',9.375,'T'],
+['Bede','Entrenador','poco',9.375,'T'],
+['Crushing Hammer','Entrenador','poco',9.375,'T'],
+['Digging Duo','Entrenador','poco',9.375,'T'],
+['Energy Retrieval','Entrenador','poco',9.375,'T'],
+['Energy Search','Entrenador','comun',15.625,'T'],
+['Energy Switch','Entrenador','poco',9.375,'T'],
+['Friends in Hisui','Entrenador','poco',9.375,'T'],
+['Friends in Sinnoh','Entrenador','poco',9.375,'T'],
+['Great Ball','Entrenador','poco',9.375,'T'],
+['Hop','Entrenador','poco',9.375,'T'],
+['Leon','Entrenador','poco',9.375,'T'],
+['Lost Vacuum','Entrenador','poco',9.375,'T'],
+['Nessa','Entrenador','poco',9.375,'T'],
+['Poké Ball','Entrenador','comun',15.625,'T'],
+['Pokémon Catcher','Entrenador','poco',9.375,'T'],
+['Potion','Entrenador','comun',15.625,'T'],
+['Raihan','Entrenador','poco',9.375,'T'],
+['Rare Candy','Entrenador','poco',9.375,'T'],
+['Rescue Carrier','Entrenador','poco',9.375,'T'],
+['Sky Seal Stone','Entrenador','rara',4.1667,'T'],
+['Switch','Entrenador','comun',15.625,'T'],
+['Trekking Shoes','Entrenador','comun',15.625,'T'],
+['Ultra Ball','Entrenador','poco',9.375,'T'],
+['Elesa\'s Sparkle','Entrenador','epica',2.0833,'T'],
+['Friends in Hisui','Entrenador','epica',2.0833,'T'],
+['Friends in Sinnoh','Entrenador','epica',2.0833,'T'],
+['Professor\'s Research','Entrenador','epica',2.0833,'T',1.1],
+['Volo','Entrenador','epica',2.0833,'T',1.1],
+['Grass Energy','Planta','comun',15.625,'E'],
+['Fire Energy','Fuego','comun',15.625,'E'],
+['Water Energy','Agua','comun',15.625,'E'],
+['Lightning Energy','Eléctrico','comun',15.625,'E'],
+['Psychic Energy','Psíquico','comun',15.625,'E'],
+['Fighting Energy','Lucha','comun',15.625,'E'],
+['Darkness Energy','Siniestro','comun',15.625,'E'],
+['Metal Energy','Acero','comun',15.625,'E'],
+['Hisuian Voltorb','Eléctrico','epica',2.0833],
+['Kricketune','Bicho','epica',2.0833],
+['Magmortar','Fuego','epica',2.0833],
+['Oricorio','Volador','epica',2.0833],
+['Lapras','Agua','epica',2.0833],
+['Manaphy','Agua','epica',2.0833],
+['Keldeo','Agua','epica',2.0833],
+['Electivire','Eléctrico','epica',2.0833],
+['Toxtricity','Eléctrico','epica',2.0833],
+['Mew','Psíquico','epica',2.0833,'',1.2],
+['Lunatone','Roca','epica',2.0833],
+['Deoxys','Psíquico','epica',2.0833],
+['Diancie','Hada','epica',2.0833],
+['Comfey','Hada','epica',2.0833],
+['Solrock','Roca','epica',2.0833],
+['Absol','Siniestro','epica',2.0833],
+['Thievul','Siniestro','epica',2.0833],
+['Magnezone','Acero','epica',2.0833],
+['Altaria','Dragón','epica',2.0833],
+['Latias','Dragón','epica',2.0833],
+['Hisuian Goodra','Acero','epica',2.0833],
+['Ditto','Normal','epica',2.0833],
+['Dunsparce','Normal','epica',2.0833],
+['Miltank','Normal','epica',2.0833],
+['Bibarel','Normal','epica',2.0833],
+['Riolu','Lucha','epica',2.0833],
+['Swablu','Normal','epica',2.0833],
+['Duskull','Fantasma','epica',2.0833],
+['Bidoof','Normal','epica',2.0833],
+['Pikachu','Eléctrico','epica',2.0833,'',1.1],
+['Turtwig','Planta','epica',2.0833],
+['Paras','Bicho','epica',2.0833],
+['Poochyena','Siniestro','epica',2.0833],
+['Mareep','Eléctrico','epica',2.0833],
+['Entei V','Fuego','epica',2.0833],
+['Suicune V','Agua','epica',2.0833],
+['Lumineon V','Agua','epica',2.0833,'',0.9],
+['Raikou V','Eléctrico','epica',2.0833],
+['Zacian V','Acero','epica',2.0833,'',1.3],
+['Drapion V','Siniestro','epica',2.0833,'',0.8],
+['Hisuian Samurott V','Agua','epica',2.0833,'',0.9],
+['Hoopa V','Psíquico','epica',2.0833],
+['Zamazenta V','Lucha','epica',2.0833,'',1.1],
+['Leafeon VSTAR','Planta','legendaria',1.0417,'',1.1],
+['Simisear VSTAR','Fuego','legendaria',1.0417,'',0.8],
+['Glaceon VSTAR','Hielo','legendaria',1.0417,'',1.2],
+['Zeraora VMAX','Eléctrico','legendaria',1.0417,'',1.4],
+['Zeraora VSTAR','Eléctrico','legendaria',1.0417,'',1.3],
+['Mewtwo VSTAR','Psíquico','legendaria',1.0417,'',1.9],
+['Deoxys VMAX','Psíquico','legendaria',1.0417,'',1.1],
+['Deoxys VSTAR','Psíquico','legendaria',1.0417,'',1.2],
+['Hatterene VMAX','Psíquico','legendaria',1.0417,'',0.9],
+['Darkrai VSTAR','Siniestro','legendaria',1.0417,'',1.3],
+['Hisuian Samurott VSTAR','Agua','legendaria',1.0417,'',0.9],
+['Regigigas VSTAR','Normal','legendaria',1.0417,'',0.9],
+['Hisuian Zoroark VSTAR','Fantasma','legendaria',1.0417,'',1.1],
+['Adaman','Entrenador','epica',2.0833,'T'],
+['Cheren\'s Care','Entrenador','epica',2.0833,'T'],
+['Colress\'s Experiment','Entrenador','epica',2.0833,'T'],
+['Cynthia\'s Ambition','Entrenador','epica',2.0833,'T'],
+['Gardenia\'s Vigor','Entrenador','epica',2.0833,'T'],
+['Grant','Entrenador','epica',2.0833,'T'],
+['Irida','Entrenador','epica',2.0833,'T'],
+['Melony','Entrenador','epica',2.0833,'T'],
+['Raihan','Entrenador','epica',2.0833,'T'],
+['Roxanne','Entrenador','epica',2.0833,'T'],
+['Origin Forme Palkia VSTAR','Agua','legendaria',1.0417,'',1.6],
+['Origin Forme Dialga VSTAR','Acero','legendaria',1.0417,'',1.6],
+['Giratina VSTAR','Fantasma','legendaria',1.0417,'',2.8],
+['Arceus VSTAR','Normal','legendaria',1.0417,'',2.2],
+];
+
+// ---- Team Rocket (2000) · 83/83 cartas reales (82 + Dark Raichu secreta), con rareza real ----
+// Precios según el valor real de mercado: Dark Charizard, Blastoise y Dragonite son las estrellas.
+const ROCKET_ROWS=[
+// Holo Rara (17 normales + Dark Raichu secreta)
+['Dark Alakazam','Psíquico','epica',1.9608,'',1.1],
+['Dark Arbok','Veneno','epica',1.9608,'',0.7],
+['Dark Blastoise','Agua','epica',1.9608,'',1.6],
+['Dark Charizard','Fuego','epica',1.9608,'',3.2],
+['Dark Dragonite','Dragón','epica',1.9608,'',1.4],
+['Dark Dugtrio','Tierra','epica',1.9608,'',0.7],
+['Dark Golbat','Veneno','epica',1.9608,'',0.7],
+['Dark Gyarados','Agua','epica',1.9608,'',1.3],
+['Dark Hypno','Psíquico','epica',1.9608,'',0.9],
+['Dark Machamp','Lucha','epica',1.9608,'',1.0],
+['Dark Magneton','Eléctrico','epica',1.9608,'',0.8],
+['Dark Slowbro','Psíquico','epica',1.9608,'',0.8],
+['Dark Vileplume','Planta','epica',1.9608,'',0.8],
+['Dark Weezing','Veneno','epica',1.9608,'',0.7],
+['Here Comes Team Rocket!','Entrenador','epica',1.9608,'T',0.9],
+["Rocket's Sneak Attack",'Entrenador','epica',1.9608,'T',0.8],
+['Rainbow Energy','Normal','epica',1.9608,'E',0.6],
+['Dark Raichu','Eléctrico','legendaria',0.25,'',1.5],
+// Rara
+['Dark Alakazam','Psíquico','rara',3.9216,'',1.1],
+['Dark Arbok','Veneno','rara',3.9216,'',0.8],
+['Dark Blastoise','Agua','rara',3.9216,'',1.4],
+['Dark Charizard','Fuego','rara',3.9216,'',2.5],
+['Dark Dragonite','Dragón','rara',3.9216,'',1.2],
+['Dark Dugtrio','Tierra','rara',3.9216,'',0.8],
+['Dark Golbat','Veneno','rara',3.9216,'',0.8],
+['Dark Gyarados','Agua','rara',3.9216,'',1.1],
+['Dark Hypno','Psíquico','rara',3.9216,'',0.9],
+['Dark Machamp','Lucha','rara',3.9216,'',0.9],
+['Dark Magneton','Eléctrico','rara',3.9216,'',0.8],
+['Dark Slowbro','Psíquico','rara',3.9216,'',0.8],
+['Dark Vileplume','Planta','rara',3.9216,'',0.8],
+['Dark Weezing','Veneno','rara',3.9216,'',0.8],
+['Here Comes Team Rocket!','Entrenador','rara',3.9216,'T',0.7],
+["Rocket's Sneak Attack",'Entrenador','rara',3.9216,'T',0.7],
+['Rainbow Energy','Normal','rara',3.9216,'E',0.5],
+// Poco común
+['Dark Charmeleon','Fuego','poco',4.1667,'',1],
+['Dark Dragonair','Dragón','poco',4.1667,'',1.2],
+['Dark Electrode','Eléctrico','poco',4.1667,'',1],
+['Dark Flareon','Fuego','poco',4.1667,'',1.3],
+['Dark Gloom','Planta','poco',4.1667,'',1],
+['Dark Golduck','Agua','poco',4.1667,'',1],
+['Dark Jolteon','Eléctrico','poco',4.1667,'',1.3],
+['Dark Kadabra','Psíquico','poco',4.1667,'',1],
+['Dark Machoke','Lucha','poco',4.1667,'',1],
+['Dark Muk','Veneno','poco',4.1667,'',1],
+['Dark Persian','Normal','poco',4.1667,'',1],
+['Dark Primeape','Lucha','poco',4.1667,'',1],
+['Dark Rapidash','Fuego','poco',4.1667,'',1],
+['Dark Vaporeon','Agua','poco',4.1667,'',1.3],
+['Dark Wartortle','Agua','poco',4.1667,'',1],
+['Magikarp','Agua','poco',4.1667],
+['Porygon','Normal','poco',4.1667],
+["The Boss's Way",'Entrenador','poco',4.1667,'T'],
+["Challenge!",'Entrenador','poco',4.1667,'T'],
+["Digger",'Entrenador','poco',4.1667,'T'],
+["Imposter Oak's Revenge",'Entrenador','poco',4.1667,'T'],
+["Nightly Garbage Run",'Entrenador','poco',4.1667,'T'],
+['Full Heal Energy','Normal','poco',4.1667,'E'],
+['Potion Energy','Normal','poco',4.1667,'E'],
+// Común
+['Abra','Psíquico','comun',4.1667,'',1],
+['Charmander','Fuego','comun',4.1667,'',1.1],
+['Dark Raticate','Normal','comun',4.1667,'',1],
+['Diglett','Tierra','comun',4.1667,'',1],
+['Dratini','Dragón','comun',4.1667,'',1.2],
+['Drowzee','Psíquico','comun',4.1667,'',1],
+['Eevee','Normal','comun',4.1667,'',1.4],
+['Ekans','Veneno','comun',4.1667,'',1],
+['Grimer','Veneno','comun',4.1667,'',1],
+['Koffing','Veneno','comun',4.1667,'',1],
+['Machop','Lucha','comun',4.1667,'',1],
+['Magnemite','Eléctrico','comun',4.1667,'',1],
+['Mankey','Lucha','comun',4.1667,'',1],
+['Meowth','Normal','comun',4.1667,'',1],
+['Oddish','Planta','comun',4.1667,'',1],
+['Ponyta','Fuego','comun',4.1667,'',1],
+['Psyduck','Agua','comun',4.1667,'',1],
+['Rattata','Normal','comun',4.1667,'',1],
+['Slowpoke','Psíquico','comun',4.1667,'',1],
+['Squirtle','Agua','comun',4.1667,'',1.1],
+['Voltorb','Eléctrico','comun',4.1667,'',1],
+['Zubat','Veneno','comun',4.1667,'',1],
+['Goop Gas Attack','Entrenador','comun',4.1667,'T'],
+['Sleep!','Entrenador','comun',4.1667,'T'],
+];
+
+const SET_POOLS={
+  base:{ label:'Base Set (1999)', cards:mkCards(BASE_ROWS) },
+  jungle:{ label:'Jungle (1999)', cards:mkCards(JUNGLE_ROWS) },
+  set151:{ label:'151 (2023)', cards:mkCards(SET151_ROWS) },
+  crownzenith:{ label:'Cenit Supremo (2023)', cards:mkCards(CROWNZENITH_ROWS) },
+  rocket:{ label:'Team Rocket (2000)', cards:mkCards(ROCKET_ROWS) },
+};
+
+// ---- Sobres: estructura real por "espacios" (slots), como un sobre físico ----
+// Ordenados de menor a mayor precio; el Lote Sorpresa va siempre al final.
+// reqLevel = nivel de Entrenador necesario para desbloquear esa colección.
+const PACKS=[
+  {id:'base', label:'Sobre Base Set (1999)', cost:20, em:'📦', poolIds:['base'], skin:'basico', reqLevel:1,
+    slots:[{tiers:['rara','epica'],count:1},{tiers:['poco'],count:3},{tiers:['comun'],count:7}],
+    desc:'Booster real de 11 cartas: 1 espacio rara/holo, 3 poco comunes y 7 comunes (incluye energías y entrenadores).'},
+  {id:'jungle', label:'Sobre Jungle (1999)', cost:40, em:'🎁', poolIds:['jungle'], skin:'plus', reqLevel:2,
+    slots:[{tiers:['rara','epica'],count:1},{tiers:['poco'],count:3},{tiers:['comun'],count:7}],
+    desc:'Booster real de 11 cartas de la segunda expansión clásica.'},
+  {id:'set151', label:'Sobre 151 (2023)', cost:60, em:'✨', poolIds:['set151'], skin:'premium', reqLevel:3,
+    slots:[{tiers:['comun'],count:6},{tiers:['poco'],count:3},{tiers:['rara','epica','legendaria'],count:1}],
+    desc:'Booster real de 10 cartas (6 comunes, 3 poco comunes, 1 espacio de "hit"). Garantiza una Rara, ex o mejor.'},
+  {id:'crownzenith', label:'Sobre Cenit Supremo (2023)', cost:75, em:'👑', poolIds:['crownzenith'], skin:'premium', reqLevel:4,
+    slots:[{tiers:['comun'],count:4},{tiers:['poco'],count:3},{tiers:['rara'],count:2},{tiers:['epica','legendaria'],count:1}],
+    desc:'Booster real de 10 cartas del set especial Crown Zenith (incluye la Galarian Gallery). Garantiza un espacio de "hit" V/VSTAR/VMAX o Galería.'},
+  {id:'etb', label:'Elite Trainer Box 151', cost:170, em:'👑', poolIds:['set151'], skin:'elite', reqLevel:5,
+    slots:[{tiers:['comun'],count:9},{tiers:['poco'],count:5},{tiers:['rara'],count:2},{tiers:['epica','legendaria'],count:1}],
+    desc:'Caja de entrenador élite: varios sobres en uno. Garantiza al menos una carta ex Épica o Legendaria.'},
+  {id:'rocket', label:'Sobre Team Rocket (2000)', cost:250, em:'🚀', poolIds:['rocket'], skin:'elite', reqLevel:7,
+    slots:[{tiers:['rara','epica','legendaria'],count:1},{tiers:['poco'],count:3},{tiers:['comun'],count:7}],
+    desc:'Booster real de 11 cartas de Team Rocket (83 cartas, con las Dark Pokémon). 1 espacio rara/holo (¡con una probabilidad mínima de Dark Raichu secreta!), 3 poco comunes y 7 comunes. Cartas de alto valor: Dark Charizard, Dark Blastoise, Dark Dragonite.'},
+  {id:'mixlote', label:'Lote Sorpresa', cost:30, em:'🎲', poolIds:['base','jungle','set151'], skin:'mystery', reqLevel:6,
+    slots:[{tiers:ALL_TIERS,count:4}],
+    desc:'Mezcla de cartas sueltas de distintas épocas. Total incertidumbre.'},
+];
+
+// ---- Arte original (no reproducimos el arte real de las cartas) ----
+let svgIdCounter=0;
+function creatureSVG(c, size){
+  size=size||80;
+  const artType=TYPE_ART[c.type]||'Normal';
+  const [c1,c2]=ART_COLORS[artType];
+  const seed=(svgIdCounter++)+[...c.name].reduce((a,ch)=>a+ch.charCodeAt(0),0);
+  const eyeGap=14+(seed%6);
+  const bodyR=28+(seed%5);
+  let feature='';
+  if(artType==='Fuego') feature=`<path d="M40 10 C34 22 30 28 40 34 C50 28 46 22 40 10Z" fill="#ffd27a"/>`;
+  else if(artType==='Agua') feature=`<path d="M40 8 C30 22 30 32 40 34 C50 32 50 22 40 8Z" fill="${c1}" opacity=".8"/>`;
+  else if(artType==='Planta') feature=`<ellipse cx="26" cy="16" rx="9" ry="5" fill="#5fb83a" transform="rotate(-30 26 16)"/><ellipse cx="54" cy="16" rx="9" ry="5" fill="#5fb83a" transform="rotate(30 54 16)"/>`;
+  else if(artType==='Eléctrico') feature=`<path d="M44 6 L34 26 L42 26 L36 42 L52 20 L43 20 Z" fill="#fff4b8"/>`;
+  else if(artType==='Psíquico') feature=`<circle cx="40" cy="16" r="6" fill="none" stroke="${c1}" stroke-width="3"/><circle cx="40" cy="16" r="2" fill="${c1}"/>`;
+  else if(artType==='Roca') feature=`<polygon points="26,14 34,8 42,14 38,22 30,22" fill="${c2}"/>`;
+  else if(artType==='Hielo') feature=`<path d="M40 6 V26 M32 12 L48 20 M48 12 L32 20" stroke="${c1}" stroke-width="3" stroke-linecap="round"/>`;
+  else if(artType==='Dragón') feature=`<path d="M14 34 Q26 20 34 30" fill="none" stroke="${c2}" stroke-width="6" stroke-linecap="round"/><path d="M66 34 Q54 20 46 30" fill="none" stroke="${c2}" stroke-width="6" stroke-linecap="round"/>`;
+  else feature=`<circle cx="24" cy="14" r="4" fill="${c1}"/><circle cx="56" cy="14" r="4" fill="${c1}"/>`;
+  return `<svg class="art" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <defs><radialGradient id="g${seed}" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/>
+    </radialGradient></defs>
+    <ellipse cx="40" cy="62" rx="22" ry="6" fill="#000" opacity=".18"/>
+    ${feature}
+    <circle cx="40" cy="42" r="${bodyR}" fill="url(#g${seed})" stroke="${c2}" stroke-width="2"/>
+    <circle cx="${40-eyeGap/2}" cy="40" r="4.2" fill="#22242f"/>
+    <circle cx="${40+eyeGap/2}" cy="40" r="4.2" fill="#22242f"/>
+    <circle cx="${40-eyeGap/2+1.3}" cy="38.5" r="1.3" fill="#fff"/>
+    <circle cx="${40+eyeGap/2+1.3}" cy="38.5" r="1.3" fill="#fff"/>
+    <path d="M34 50 Q40 54 46 50" stroke="#22242f" stroke-width="2" fill="none" stroke-linecap="round"/>
+  </svg>`;
+}
+function trainerSVG(c,size){
+  size=size||80;
+  const id2=svgIdCounter++;
+  return `<svg class="art" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="t${id2}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3a3d63"/><stop offset="100%" stop-color="#272a4a"/>
+    </linearGradient></defs>
+    <rect x="14" y="8" width="52" height="64" rx="8" fill="url(#t${id2})" stroke="#57d9c9" stroke-width="2"/>
+    <path d="M40 22 L44 32 L54 33 L46.5 40 L48.5 50 L40 45 L31.5 50 L33.5 40 L26 33 L36 32 Z" fill="#ffce54"/>
+    <rect x="22" y="56" width="36" height="4" rx="2" fill="#8a8dbf"/>
+    <rect x="22" y="63" width="24" height="4" rx="2" fill="#8a8dbf"/>
+  </svg>`;
+}
+function energySVG(c,size){
+  size=size||80;
+  const artType=TYPE_ART[c.type]||'Normal';
+  const [c1,c2]=ART_COLORS[artType];
+  const id2=svgIdCounter++;
+  return `<svg class="art" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <defs><radialGradient id="e${id2}" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/>
+    </radialGradient></defs>
+    <circle cx="40" cy="40" r="28" fill="url(#e${id2})" stroke="${c2}" stroke-width="2"/>
+    <path d="M40 20 L46 38 L58 38 L48 48 L52 62 L40 53 L28 62 L32 48 L22 38 L34 38 Z" fill="#fff" opacity=".85"/>
+  </svg>`;
+}
+function cardArt(c,size){
+  if(c.isEnergy) return energySVG(c,size);
+  if(c.isTrainer) return trainerSVG(c,size);
+  return creatureSVG(c,size);
+}
+function typeLabel(c){
+  if(c.isTrainer) return 'Entrenador';
+  if(c.isEnergy) return `Energía ${c.type}`;
+  return c.type;
+}
+function cardFrameHtml(c, size){
+  size=size||80;
+  const isHolo=(c.rarity==='epica'||c.rarity==='legendaria');
+  const raritySym=c.rarity==='comun'?'●':c.rarity==='poco'?'◆':'★';
+  const hp=30+(([...c.name].reduce((a,ch)=>a+ch.charCodeAt(0),0))%7)*10;
+  const isModern=(c.setLabel==='151 (2023)');
+  const shineClass=(isModern && c.rarity==='legendaria')?'holoShine rainbow':'holoShine';
+  return `<div class="tcgFrame ${isHolo?'holo':''} ${isModern?'modern':''}">
+    <div class="tcgTop"><span class="tcgName">${c.name}</span><span class="tcgHp">HP ${hp}</span></div>
+    <div class="tcgArt">${cardArt(c,size)}${isHolo?`<div class="${shineClass}"></div>`:''}</div>
+    <div class="tcgBottom"><span class="tcgType">${typeLabel(c)}</span><span class="tcgRarity">${raritySym}</span></div>
+  </div>`;
+}
+
+// El progreso se guarda en el navegador: al recargar o actualizar el juego, sigues donde lo dejaste.
+const SAVE_KEY='cuartoDeCartas_save_v1';
+const DEFAULT_STATE=()=>({coins:150, cards:[], market:1, level:1, xp:0});
+function loadState(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY);
+    if(raw){ return Object.assign(DEFAULT_STATE(), JSON.parse(raw)); }
+  }catch(e){}
+  return DEFAULT_STATE();
+}
+let state=loadState();
+function save(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }catch(e){}
+}
+function coinVal(){ document.getElementById('coinVal').textContent=state.coins; }
+
+// ---- Niveles y experiencia: se gana abriendo sobres y gradeando cartas ----
+function xpNeeded(level){ return Math.round((50 + (level-1)*30) * 2 * 0.7 * 0.8); } // el doble de XP, con descuentos del 30% y luego 20%
+function showToast(msg){
+  const wrap=document.getElementById('toastWrap');
+  const el=document.createElement('div');
+  el.className='toast';
+  el.textContent=msg;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.remove(); }, 2700);
+}
+function updateXpBar(){
+  document.getElementById('xpLevel').textContent='NIVEL '+state.level;
+  const need=xpNeeded(state.level);
+  document.getElementById('xpBarInner').style.width=Math.min(100, (state.xp/need)*100)+'%';
+  document.getElementById('xpText').textContent=state.xp+'/'+need+' XP';
+}
+function gainXp(amount){
+  state.xp+=amount;
+  let leveled=false;
+  while(state.xp>=xpNeeded(state.level)){
+    state.xp-=xpNeeded(state.level);
+    state.level++;
+    leveled=true;
+  }
+  updateXpBar();
+  save();
+  if(leveled){
+    showToast('⭐ ¡Subiste a nivel '+state.level+'!');
+    renderRoomLocks();
+  } else {
+    showToast('+'+amount+' XP');
+  }
+}
+// ---- Bloqueo por nivel: colecciones, Centro de Gradeo y Catálogo se desbloquean al subir de nivel ----
+const GRADING_REQ_LEVEL=3;
+const CATALOG_REQ_LEVEL=3;
+function lockZone(id, reqLevel){
+  const z=document.getElementById(id);
+  const badge=z.querySelector('.zoneLockBadge');
+  if(state.level<reqLevel){
+    z.classList.add('locked');
+    if(!badge){
+      const b=document.createElement('div');
+      b.className='zoneLockBadge';
+      b.textContent='🔒 Nivel '+reqLevel;
+      z.appendChild(b);
+    }
+  } else {
+    z.classList.remove('locked');
+    if(badge) badge.remove();
+  }
+}
+function renderRoomLocks(){
+  lockZone('zGrading', GRADING_REQ_LEVEL);
+  lockZone('zCatalog', CATALOG_REQ_LEVEL);
+}
+
+// ---- Mercado: el precio de venta sube y baja levemente con el tiempo ----
+function updateMarket(){
+  state.market += (Math.random()-0.5)*0.1;
+  state.market = Math.max(0.85, Math.min(1.15, state.market));
+}
+setInterval(updateMarket, 9000);
+function marketInfo(){
+  if(state.market>=1.08) return {label:'📈 Mercado boyante', cls:'lucky'};
+  if(state.market<=0.92) return {label:'📉 Mercado deprimido', cls:'unlucky'};
+  return {label:'➖ Mercado estable', cls:'normal'};
+}
+
+// ---- Elegir una carta de un slot, respetando las probabilidades reales dadas ----
+function drawFromSlot(poolIds, tiers){
+  let pool=[];
+  poolIds.forEach(pid=>{
+    SET_POOLS[pid].cards.forEach(c=>{ if(tiers.includes(c.rarity)) pool.push({...c, setLabel:SET_POOLS[pid].label}); });
+  });
+  const total=pool.reduce((s,c)=>s+c.prob,0);
+  let x=Math.random()*total;
+  for(const c of pool){ if(x<c.prob) return c; x-=c.prob; }
+  return pool[pool.length-1];
+}
+// Valor esperado (en unidades de C) de una sola extracción de un slot
+function slotUnitExpected(poolIds, tiers){
+  let pool=[];
+  poolIds.forEach(pid=> SET_POOLS[pid].cards.forEach(c=>{ if(tiers.includes(c.rarity)) pool.push(c); }));
+  const T=pool.reduce((s,c)=>s+c.prob,0);
+  return pool.length/T;
+}
+// Precio del sobre repartido de forma que cada sobre rinda, en promedio, ~30% más que su costo
+function packC(pack){
+  const margin=1.3;
+  const unitSum=pack.slots.reduce((s,slot)=> s+slot.count*slotUnitExpected(pack.poolIds, slot.tiers), 0);
+  return pack.cost*margin/unitSum;
+}
+function priceForProb(prob, C, mult){
+  const jitter=0.9+Math.random()*0.2;
+  return Math.max(1, Math.round((C/prob)*(mult||1)*jitter));
+}
+// Versión sin azar, usada solo para mostrar el valor de referencia en el catálogo
+function priceForProbDisplay(prob, C, mult){
+  return Math.max(1, Math.round((C/prob)*(mult||1)));
+}
+function makeCardInstance(base, C){
+  const rarityMeta=RARITIES.find(r=>r.id===base.rarity);
+  return {
+    id:crypto.randomUUID?crypto.randomUUID():String(Math.random()),
+    name:base.name, type:base.type, rarity:base.rarity, rarityLabel:rarityMeta.label,
+    color:rarityMeta.color, price:priceForProb(base.prob, C, base.mult),
+    isTrainer:!!base.isTrainer, isEnergy:!!base.isEnergy, setLabel:base.setLabel
+  };
+}
+
+const overlay=document.getElementById('overlay');
+const modalBody=document.getElementById('modalBody');
+function openModal(html){ modalBody.innerHTML=html; overlay.classList.add('show'); }
+function closeModal(){ overlay.classList.remove('show'); }
+overlay.addEventListener('click', e=>{ if(e.target===overlay) closeModal(); });
+
+// ---- Computador: comprar sobres ----
+document.getElementById('zComputer').onclick=()=>{
+  openModal(`
+    <button class="closeBtn" onclick="closeModal()">Cerrar</button>
+    <h2>🖥️ Tienda de sobres</h2>
+    <p style="font-size:11px;color:#9295c4">Las colecciones se van desbloqueando a medida que subes de nivel (se gana XP al abrir sobres y al gradear cartas).</p>
+    <div class="packGrid">
+      ${PACKS.map(p=>{
+        const locked=state.level<p.reqLevel;
+        const disabled=locked||state.coins<p.cost;
+        return `
+        <div class="pack ${disabled?'disabled':''}" data-skin="${p.skin}" ${disabled?'':`onclick="buyPack('${p.id}')"`}>
+          <div class="pk">${p.em}</div>
+          <div>${p.label}</div>
+          <div class="price">💰 ${p.cost}</div>
+          <div class="pdesc">${p.desc}</div>
+          ${locked?`<div class="packLockBadge"><div class="lk">🔒</div><div class="lt">Nivel ${p.reqLevel} requerido</div></div>`:''}
+        </div>`;
+      }).join('')}
+    </div>
+  `);
+};
+
+function cardHtml(c){
+  return `<div class="card${c.black?' blackLabel':''}" style="--rc:${c.color}">
+    ${cardFrameHtml(c)}
+    <div class="era">${c.setLabel}${c.graded?` · ${c.black?'<span class="blTag">BGS 10 BLACK LABEL</span>':gradeTag(c)}`:''}</div>
+    <div class="pr">💰 ${c.price}</div>
+  </div>`;
+}
+
+let openQueue=[];
+let openIdx=0;
+let currentPack=null;
+window.buyPack=function(id){
+  const pack=PACKS.find(p=>p.id===id);
+  currentPack=pack;
+  if(state.level<pack.reqLevel){ alert('Necesitas nivel '+pack.reqLevel+' para comprar esta colección.'); return; }
+  if(state.coins<pack.cost){ alert('No tienes suficiente dinero para este sobre.'); return; }
+  state.coins-=pack.cost;
+  save(); coinVal();
+  const C=packC(pack);
+  openQueue=[];
+  pack.slots.forEach(slot=>{
+    for(let i=0;i<slot.count;i++){
+      const base=drawFromSlot(pack.poolIds, slot.tiers);
+      openQueue.push(makeCardInstance(base, C));
+    }
+  });
+  // La mejor carta (la de mayor valor) siempre sale al final del sobre
+  // El resto de las cartas sale en orden aleatorio
+  for(let i=openQueue.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [openQueue[i],openQueue[j]]=[openQueue[j],openQueue[i]]; }
+  let bestIdx=0;
+  openQueue.forEach((c,i)=>{ if(c.price>openQueue[bestIdx].price) bestIdx=i; });
+  openQueue.push(openQueue.splice(bestIdx,1)[0]);
+  state.cards.push(...openQueue);
+  save();
+  gainXp(Math.max(8, Math.round(pack.cost*0.4)));
+  openIdx=0;
+  renderOpenStage();
+};
+
+function renderOpenStage(){
+  const total=openQueue.length;
+  const isLast=openIdx===total-1;
+  const c=openQueue[openIdx];
+  openModal(`
+    <button class="closeBtn" onclick="closeModal()">Cerrar</button>
+    <h2>🎴 Abriendo sobre... (${openIdx+1}/${total})</h2>
+    <div id="openStage">
+      <div class="flipZone">
+        <div class="flipCard" id="flipCard" style="--rc:${c.color}" onclick="revealCard()">
+          <div class="face faceBack" data-skin="${currentPack?currentPack.skin:'basico'}">${currentPack?currentPack.em:'🃏'}</div>
+          <div class="face faceFront" style="--rc:${c.color}">
+            ${cardFrameHtml(c)}
+            <div class="era">${c.setLabel}</div>
+            <div class="pr">💰 ${c.price}</div>
+          </div>
+        </div>
+      </div>
+      <div id="openHint">Toca la carta para voltearla</div>
+      <button class="btn" id="nextBtn" style="display:none" onclick="nextCard()">${isLast?'Ver todas':'Siguiente carta'}</button>
+    </div>
+  `);
+}
+window.revealCard=function(){
+  const fc=document.getElementById('flipCard');
+  fc.classList.add('flipped');
+  document.getElementById('openHint').style.display='none';
+  document.getElementById('nextBtn').style.display='inline-block';
+};
+window.nextCard=function(){
+  openIdx++;
+  if(openIdx<openQueue.length){ renderOpenStage(); }
+  else{
+    openModal(`
+      <button class="closeBtn" onclick="closeModal()">Cerrar</button>
+      <h2>🎉 Sobre abierto</h2>
+      <div class="cardGrid">${openQueue.map(cardHtml).join('')}</div>
+    `);
+  }
+};
+
+// ---- Riesgo al vender ----
+function saleOutcome(basePrice){
+  const roll=Math.random();
+  let mult, tag, cls;
+  if(roll<0.05){ mult=1.4+Math.random()*0.4; tag='Buena venta'; cls='lucky'; }
+  else if(roll<0.15){ mult=0.7+Math.random()*0.2; tag='Mala racha'; cls='unlucky'; }
+  else{ mult=0.9+Math.random()*0.25; tag='Venta normal'; cls='normal'; }
+  const final=Math.max(1,Math.round(basePrice*mult*state.market));
+  return {price:final, tag, cls};
+}
+
+// ---- Máquina: vender cartas ----
+document.getElementById('zMachine').onclick=()=>{
+  if(state.cards.length===0){
+    openModal(`<button class="closeBtn" onclick="closeModal()">Cerrar</button><h2>🏧 Máquina vendedora</h2><div class="empty">No tienes cartas para vender. Compra sobres en el computador.</div>`);
+    return;
+  }
+  const mi=marketInfo();
+  const miColor={lucky:'var(--gold)', unlucky:'var(--coral)', normal:'var(--cyan)'}[mi.cls];
+  openModal(`
+    <button class="closeBtn" onclick="closeModal()">Cerrar</button>
+    <h2>🏧 Máquina vendedora</h2>
+    <div style="font-size:12px;color:${miColor};margin-bottom:4px">${mi.label}</div>
+    <p style="font-size:12px;color:#b8bade">Marca las cartas que quieras vender. El precio puede variar un poco respecto al valor mostrado.</p>
+    <div class="sortRow">
+      <button onclick="toggleAllSell(true)">Seleccionar todo</button>
+      <button onclick="toggleAllSell(false)">Deseleccionar todo</button>
+    </div>
+    <div class="cardGrid" id="sellGrid">
+      ${state.cards.map((c,i)=>`
+        <div class="card" style="--rc:${c.color}">
+          <input type="checkbox" data-idx="${i}">
+          ${cardFrameHtml(c)}
+          <div class="era">${c.setLabel}</div>
+          <div class="pr">💰 ${c.price}</div>
+        </div>`).join('')}
+    </div>
+    <button class="btn" onclick="sellSelected()">Vender seleccionadas</button>
+  `);
+};
+window.toggleAllSell=function(v){
+  document.querySelectorAll('#sellGrid input[type=checkbox]').forEach(b=>b.checked=v);
+};
+window.sellSelected=function(){
+  const boxes=[...document.querySelectorAll('#sellGrid input:checked')];
+  if(boxes.length===0){ alert('Selecciona al menos una carta.'); return; }
+  const idxs=boxes.map(b=>parseInt(b.dataset.idx)).sort((a,b)=>b-a);
+  let results=[];
+  idxs.forEach(i=>{
+    const c=state.cards[i];
+    const outcome=saleOutcome(c.price);
+    results.push({card:c, ...outcome});
+    state.cards.splice(i,1);
+  });
+  results.reverse();
+  const gained=results.reduce((s,r)=>s+r.price,0);
+  state.coins+=gained;
+  save(); coinVal();
+  const colorFor={lucky:'var(--gold)', unlucky:'var(--coral)', normal:'var(--cream)'};
+  openModal(`
+    <button class="closeBtn" onclick="closeModal()">Cerrar</button>
+    <h2>🏧 Venta realizada</h2>
+    <div style="font-size:13px;color:#b8bade;margin-bottom:6px">Total recibido: <span style="color:var(--gold)">💰 ${gained}</span></div>
+    <div class="cardGrid">
+      ${results.map(r=>`
+        <div class="card" style="--rc:${r.card.color}">
+          ${cardFrameHtml(r.card)}
+          <div class="rr">Valor base: 💰 ${r.card.price}</div>
+          <div class="pr" style="color:${colorFor[r.cls]}">${r.tag}: 💰 ${r.price}</div>
+        </div>`).join('')}
+    </div>
+    <button class="btn" onclick="document.getElementById('zMachine').click()">Volver a la máquina</button>
+  `);
+};
+
+// ---- Centro de Gradeo ----
+const GRADES=[
+  {grade:10, label:'Gem Mint 10', mult:3.0, weight:3},
+  {grade:9,  label:'Mint 9', mult:1.9, weight:15},
+  {grade:8,  label:'Casi Mint 8', mult:1.3, weight:25},
+  {grade:7,  label:'Excelente 7', mult:1.05, weight:25},
+  {grade:6,  label:'Bueno 6', mult:0.85, weight:15},
+  {grade:5,  label:'Regular 5', mult:0.65, weight:12},
+  {grade:4,  label:'Dañada 4', mult:0.45, weight:5},
+];
+// Beckett: más difícil que PSA (los grados altos salen menos y los bajos valen menos),
+// pero existe el Black Label 10, rarísimo, que dispara el precio.
+const GRADES_BGS=[
+  {grade:'10 Black Label', short:'10 BL', label:'Black Label 10', mult:6.0, weight:0.5, black:true},
+  {grade:10,  label:'Pristine 10', mult:3.2, weight:2},
+  {grade:9.5, label:'Gem Mint 9.5', mult:2.0, weight:9},
+  {grade:9,   label:'Mint 9', mult:1.5, weight:17},
+  {grade:8.5, label:'Near Mint+ 8.5', mult:1.15, weight:22},
+  {grade:8,   label:'Near Mint 8', mult:0.9, weight:20},
+  {grade:7,   label:'Excelente 7', mult:0.7, weight:15},
+  {grade:6,   label:'Bueno 6', mult:0.5, weight:9},
+  {grade:5,   label:'Regular 5', mult:0.35, weight:5.5},
+];
+const GRADE_SETS={PSA:GRADES, BGS:GRADES_BGS};
+let gradeCompany='PSA';
+function gradeTag(c){ return `${c.company||'PSA'} ${c.grade}`; }
+// Comisión más alta (15%, mínimo 4): ahora solo conviene gradear cartas de ~20+ de valor
+function gradingFee(price){ return Math.max(4, Math.round(price*0.15)); }
+function gradeCard(company){
+  const list=GRADE_SETS[company||'PSA'];
+  const total=list.reduce((s,g)=>s+g.weight,0);
+  let x=Math.random()*total;
+  for(const g of list){ if(x<g.weight) return g; x-=g.weight; }
+  return list[list.length-1];
+}
+function gradingIntro(){
+  return gradeCompany==='PSA'
+    ? 'Pagas una comisión (15% del valor de la carta, mínimo 💰 4) por certificarla. El grado puede subir su valor hasta x3, aunque también puede bajarlo. Con esta comisión, solo suele valer la pena gradear cartas de 💰 20 o más.'
+    : 'Beckett es más exigente que PSA: los grados altos salen menos y los bajos valen menos. Pero existe la posibilidad (muy rara, 0.5%) de conseguir un <b>Black Label 10</b>, que multiplica el precio de la carta x6. La comisión es la misma (15%, mínimo 💰 4).';
+}
+window.setGradeCompany=function(co){
+  gradeCompany=co;
+  const sel=[...document.querySelectorAll('#gradeGrid input:checked')].map(b=>b.dataset.idx);
+  openGradingModal();
+  document.querySelectorAll('#gradeGrid input[type=checkbox]').forEach(b=>{ if(sel.includes(b.dataset.idx)) b.checked=true; });
+};
+document.getElementById('zGrading').onclick=()=>{
+  openGradingModal();
+};
+function openGradingModal(){
+  if(state.level<GRADING_REQ_LEVEL){
+    openModal(`<button class="closeBtn" onclick="closeModal()">Cerrar</button><h2>🔬 Centro de Gradeo</h2><div class="empty">🔒 Se desbloquea en el nivel ${GRADING_REQ_LEVEL}. Abre sobres para ganar XP y subir de nivel.</div>`);
+    return;
+  }
+  const ungraded=state.cards.map((c,i)=>({c,i})).filter(x=>!x.c.graded);
+  if(ungraded.length===0){
+    openModal(`<button class="closeBtn" onclick="closeModal()">Cerrar</button><h2>🔬 Centro de Gradeo</h2><div class="empty">No tienes cartas sin certificar. Compra o consigue más cartas primero.</div>`);
+    return;
+  }
+  openModal(`
+    <button class="closeBtn" onclick="closeModal()">Cerrar</button>
+    <h2>🔬 Centro de Gradeo</h2>
+    <div class="coRow">
+      <button class="${gradeCompany==='PSA'?'active':''}" onclick="setGradeCompany('PSA')"><b>PSA</b>Más accesible · Gem Mint 10 (x3)</button>
+      <button class="${gradeCompany==='BGS'?'active':''}" onclick="setGradeCompany('BGS')"><b>Beckett (BGS)</b>Más difícil · ¡puede salir Black Label 10 (x6)!</button>
+    </div>
+    <p style="font-size:12px;color:#b8bade">${gradingIntro()}</p>
+    <div class="sortRow">
+      <button onclick="toggleAllGrade(true)">Seleccionar todo</button>
+      <button onclick="toggleAllGrade(false)">Deseleccionar todo</button>
+    </div>
+    <div class="cardGrid" id="gradeGrid">
+      ${ungraded.map(({c,i})=>`
+        <div class="card" style="--rc:${c.color}">
+          <input type="checkbox" data-idx="${i}">
+          ${cardFrameHtml(c)}
+          <div class="pr">💰 ${c.price} · comisión 💰 ${gradingFee(c.price)}</div>
+        </div>`).join('')}
+    </div>
+    <button class="btn" onclick="sendToGrading()">Enviar a certificar en ${gradeCompany==='PSA'?'PSA':'Beckett'}</button>
+  `);
+}
+window.toggleAllGrade=function(v){
+  document.querySelectorAll('#gradeGrid input[type=checkbox]').forEach(b=>b.checked=v);
+};
+let gradeQueue=[];
+let gradeIdx=0;
+let pendingResult=null;
+window.sendToGrading=function(){
+  const boxes=[...document.querySelectorAll('#gradeGrid input:checked')];
+  if(boxes.length===0){ alert('Selecciona al menos una carta.'); return; }
+  const idxs=boxes.map(b=>parseInt(b.dataset.idx));
+  const fee=idxs.reduce((s,i)=>s+gradingFee(state.cards[i].price),0);
+  if(state.coins<fee){ alert('No tienes suficiente dinero para pagar la comisión de gradeo.'); return; }
+  state.coins-=fee; coinVal(); save();
+  gradeQueue=idxs.map(i=>state.cards[i]);
+  gradeIdx=0;
+  renderGradeStage();
+};
+function renderGradeStage(){
+  const total=gradeQueue.length;
+  const isLast=gradeIdx===total-1;
+  const c=gradeQueue[gradeIdx];
+  const result=gradeCard(gradeCompany);
+  pendingResult=result;
+  const coName=gradeCompany==='PSA'?'PSA':'BGS';
+  const oldPrice=c.price;
+  const newPrice=Math.max(1, Math.round(oldPrice*result.mult));
+  const up=newPrice>=oldPrice;
+  openModal(`
+    <button class="closeBtn" onclick="closeModal()">Cerrar</button>
+    <h2>🔬 Certificando... (${gradeIdx+1}/${total})</h2>
+    <div id="openStage">
+      <div class="flipZone">
+        <div class="flipCard" id="flipCard" style="--rc:${c.color}" onclick="revealGrade(${newPrice})">
+          <div class="face faceBack" data-skin="mystery">🔬</div>
+          <div class="face faceFront" style="--rc:${up?'var(--gold)':'var(--coral)'}">
+            ${cardFrameHtml(c)}
+            <div class="rr" style="color:${result.black?'#ffce54':up?'var(--gold)':'var(--coral)'}">${result.black?'🖤 BGS BLACK LABEL 10 🖤':coName+' '+result.grade+' · '+result.label}</div>
+            <div class="era">Antes: 💰 ${oldPrice}</div>
+            <div class="pr">Ahora: 💰 ${newPrice}</div>
+          </div>
+        </div>
+      </div>
+      <div id="openHint">Toca la carta para ver el resultado</div>
+      <button class="btn" id="nextBtn" style="display:none" onclick="nextGrade()">${isLast?'Ver todas':'Siguiente carta'}</button>
+    </div>
+  `);
+}
+window.revealGrade=function(newPrice){
+  const c=gradeQueue[gradeIdx];
+  c.graded=true; c.grade=pendingResult.grade; c.company=gradeCompany==='PSA'?'PSA':'BGS'; c.black=!!pendingResult.black; c.price=newPrice;
+  const fc=document.getElementById('flipCard');
+  fc.classList.add('flipped');
+  document.getElementById('openHint').style.display='none';
+  document.getElementById('nextBtn').style.display='inline-block';
+  save();
+  gainXp(pendingResult.black?30:6);
+};
+window.nextGrade=function(){
+  gradeIdx++;
+  if(gradeIdx<gradeQueue.length){ renderGradeStage(); }
+  else{
+    openModal(`
+      <button class="closeBtn" onclick="closeModal()">Cerrar</button>
+      <h2>📜 Certificación completa</h2>
+      <div class="cardGrid">${gradeQueue.map(cardHtml).join('')}</div>
+    `);
+  }
+};
+
+// ---- Catálogo: qué cartas toca cada colección, su % y su valor en cada PSA ----
+const CATALOG_SETS=[
+  {pid:'base', poolIds:['base'], label:'Base Set (1999)', pack:PACKS.find(p=>p.id==='base')},
+  {pid:'jungle', poolIds:['jungle'], label:'Jungle (1999)', pack:PACKS.find(p=>p.id==='jungle')},
+  {pid:'set151', poolIds:['set151'], label:'151 (2023)', pack:PACKS.find(p=>p.id==='set151')},
+  {pid:'etb', poolIds:['set151'], label:'Elite Trainer Box 151', pack:PACKS.find(p=>p.id==='etb')},
+  {pid:'crownzenith', poolIds:['crownzenith'], label:'Cenit Supremo (2023)', pack:PACKS.find(p=>p.id==='crownzenith')},
+  {pid:'rocket', poolIds:['rocket'], label:'Team Rocket (2000)', pack:PACKS.find(p=>p.id==='rocket')},
+  {pid:'mixlote', poolIds:['base','jungle','set151'], label:'Lote Sorpresa', pack:PACKS.find(p=>p.id==='mixlote'), normalize:true},
+];
+let catalogTab='base';
+let catalogCo='PSA';
+window.setCatalogCo=function(co){ catalogCo=co; renderCatalog(); };
+function rarityBadge(rid){
+  const meta=RARITIES.find(r=>r.id===rid);
+  return `<span class="catRarity" style="background:${meta.color}33;color:${meta.color}">${meta.label}</span>`;
+}
+function renderCatalog(){
+  const entry=CATALOG_SETS.find(s=>s.pid===catalogTab);
+  const pack=entry.pack;
+  const C=packC(pack);
+  let cards=[];
+  entry.poolIds.forEach(pid=>{
+    SET_POOLS[pid].cards.forEach(c=>cards.push({...c, setLabel:SET_POOLS[pid].label}));
+  });
+  if(entry.normalize){
+    const total=cards.reduce((s,c)=>s+c.prob,0);
+    cards=cards.map(c=>({...c, prob:c.prob/total*100}));
+  }
+  cards.sort((a,b)=> RARITY_ORDER.indexOf(b.rarity)-RARITY_ORDER.indexOf(a.rarity) || a.name.localeCompare(b.name));
+  const rows=cards.map(c=>{
+    const base=priceForProbDisplay(c.prob, C, c.mult);
+    const kind=c.isTrainer?'Entrenador':c.isEnergy?`Energía ${c.type}`:c.type;
+    const CG=GRADE_SETS[catalogCo];
+    const gradeCells=CG.map(g=>`<td class="catPrice${g.black?' blk':''}">${Math.max(1,Math.round(base*g.mult))}</td>`).join('');
+    return `<tr>
+      <td>${c.name}</td>
+      ${entry.poolIds.length>1?`<td class="era">${c.setLabel}</td>`:''}
+      <td>${kind}</td>
+      <td>${rarityBadge(c.rarity)}</td>
+      <td>${c.prob.toFixed(2)}%</td>
+      <td class="catPrice">💰 ${base}</td>
+      ${gradeCells}
+    </tr>`;
+  }).join('');
+  const gradeHeaders=GRADE_SETS[catalogCo].map(g=>`<th class="${g.black?'blk':''}">${catalogCo==='PSA'?'PSA':'BGS'} ${g.short||g.grade}</th>`).join('');
+  openModal(`
+    <button class="closeBtn" onclick="closeModal()">Cerrar</button>
+    <h2>📋 Catálogo de colecciones</h2>
+    <div class="catTabs">
+      ${CATALOG_SETS.map(s=>`<button class="${catalogTab===s.pid?'active':''}" onclick="setCatalogTab('${s.pid}')">${s.label}</button>`).join('')}
+    </div>
+    <div class="coRow" style="margin:6px 0">
+      <button class="${catalogCo==='PSA'?'active':''}" onclick="setCatalogCo('PSA')"><b>PSA</b>Valores por grado PSA</button>
+      <button class="${catalogCo==='BGS'?'active':''}" onclick="setCatalogCo('BGS')"><b>Beckett (BGS)</b>Incluye Black Label 10</button>
+    </div>
+    <div class="catWrap">
+      <table class="catTable">
+        <thead><tr>
+          <th>Carta</th>${entry.poolIds.length>1?'<th>Colección</th>':''}<th>Tipo</th><th>Rareza</th><th>% en el sobre</th><th>Precio base</th>${gradeHeaders}
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="catNote">Precio base = valor de referencia al abrir un ${pack.label} (sin la variación aleatoria de ±10% que sí aplica al abrir sobres de verdad). Las columnas muestran a cuánto quedaría esa misma carta en cada grado de la empresa elegida (PSA o Beckett) del Centro de Gradeo. En Beckett, el Black Label 10 sale con solo 0.5% de probabilidad y vale x6.</div>
+  `);
+}
+window.setCatalogTab=function(pid){ catalogTab=pid; renderCatalog(); };
+document.getElementById('zCatalog').onclick=()=>{
+  if(state.level<CATALOG_REQ_LEVEL){
+    openModal(`<button class="closeBtn" onclick="closeModal()">Cerrar</button><h2>📋 Catálogo</h2><div class="empty">🔒 Se desbloquea en el nivel ${CATALOG_REQ_LEVEL}. Abre sobres para ganar XP y subir de nivel.</div>`);
+    return;
+  }
+  renderCatalog();
+};
+
+// ---- Álbum ----
+let albumSort='alea';
+document.getElementById('zAlbum').onclick=()=>{ renderAlbum(); };
+function renderAlbum(){
+  let cards=[...state.cards];
+  if(albumSort==='alea'){ cards.sort(()=>Math.random()-0.5); }
+  else if(albumSort==='precio'){ cards.sort((a,b)=>b.price-a.price); }
+  else if(albumSort==='tipo'){ cards.sort((a,b)=>typeLabel(a).localeCompare(typeLabel(b))); }
+  else if(albumSort==='rareza'){
+    cards.sort((a,b)=>RARITY_ORDER.indexOf(b.rarity)-RARITY_ORDER.indexOf(a.rarity));
+  }
+  openModal(`
+    <button class="closeBtn" onclick="closeModal()">Cerrar</button>
+    <h2>📖 Álbum (${state.cards.length} cartas)</h2>
+    <div class="sortRow">
+      <button class="${albumSort==='alea'?'active':''}" onclick="setSort('alea')">Aleatorio</button>
+      <button class="${albumSort==='precio'?'active':''}" onclick="setSort('precio')">Precio</button>
+      <button class="${albumSort==='tipo'?'active':''}" onclick="setSort('tipo')">Tipo</button>
+      <button class="${albumSort==='rareza'?'active':''}" onclick="setSort('rareza')">Rareza</button>
+    </div>
+    <div class="cardGrid">
+      ${cards.length? cards.map(cardHtml).join('') : '<div class="empty">Tu álbum está vacío.</div>'}
+    </div>
+  `);
+}
+window.setSort=function(s){ albumSort=s; renderAlbum(); };
+
+// ---- Reinicio ----
+function restartGame(){
+  if(!confirm('¿Seguro que quieres reiniciar? Se borrará todo tu progreso.')) return;
+  try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+  state=DEFAULT_STATE();
+  closeModal();
+  coinVal();
+  updateXpBar();
+  renderRoomLocks();
+}
+window.addEventListener('pageshow', function(event){
+  if(event.persisted){ window.location.reload(); }
+});
+
+coinVal();
+updateXpBar();
+renderRoomLocks();
+
+// ---- App instalable (PWA): registra el service worker y se actualiza sola ----
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      reg.update();
+      reg.addEventListener('updatefound',()=>{
+        const nw=reg.installing;
+        nw&&nw.addEventListener('statechange',()=>{
+          if(nw.state==='installed' && navigator.serviceWorker.controller){ location.reload(); }
+        });
+      });
+    }).catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
